@@ -21,6 +21,7 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
         void SetTorrentDownloadDirectory(string hash, string directory, RTorrentSettings settings);
         bool HasHashTorrent(string hash, RTorrentSettings settings);
         void StartTorrent(string hash, RTorrentSettings settings);
+        void AddTorrentMultiCall(string hash, string label, RTorrentSettings settings);
     }
 
     public interface IRTorrent : IXmlRpcProxy
@@ -28,7 +29,7 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
         [XmlRpcMethod("d.multicall2")]
         object[] TorrentMulticall(params string[] parameters);
 
-        [XmlRpcMethod("load.normal")]
+        [XmlRpcMethod("load.start")]
         int LoadUrl(string target, string data);
 
         [XmlRpcMethod("load.raw")]
@@ -54,6 +55,7 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
 
         [XmlRpcMethod("system.multicall")]
         object[] SystemMulticall(object[] parameters);
+
     }
 
     public class RTorrentProxy : IRTorrentProxy
@@ -97,20 +99,20 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
             var items = new List<RTorrentTorrent>();
             foreach (object[] torrent in ret)
             {
-                var labelDecoded = System.Web.HttpUtility.UrlDecode((string) torrent[3]);
+                var labelDecoded = System.Web.HttpUtility.UrlDecode((string)torrent[3]);
 
                 var item = new RTorrentTorrent();
-                item.Name = (string) torrent[0];
-                item.Hash = (string) torrent[1];
-                item.Path = (string) torrent[2];
+                item.Name = (string)torrent[0];
+                item.Hash = (string)torrent[1];
+                item.Path = (string)torrent[2];
                 item.Category = labelDecoded;
-                item.TotalSize = (long) torrent[4];
-                item.RemainingSize = (long) torrent[5];
-                item.DownRate = (long) torrent[6];
-                item.Ratio = (long) torrent[7];
-                item.IsOpen = Convert.ToBoolean((long) torrent[8]);
-                item.IsActive = Convert.ToBoolean((long) torrent[9]);
-                item.IsFinished = Convert.ToBoolean((long) torrent[10]);
+                item.TotalSize = (long)torrent[4];
+                item.RemainingSize = (long)torrent[5];
+                item.DownRate = (long)torrent[6];
+                item.Ratio = (long)torrent[7];
+                item.IsOpen = Convert.ToBoolean((long)torrent[8]);
+                item.IsActive = Convert.ToBoolean((long)torrent[9]);
+                item.IsFinished = Convert.ToBoolean((long)torrent[10]);
 
                 items.Add(item);
             }
@@ -163,7 +165,7 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
 
             var client = BuildClient(settings);
 
-            var response = client.SetPriority(hash, (long) priority);
+            var response = client.SetPriority(hash, (long)priority);
             if (response != 0)
             {
                 throw new DownloadClientException("Could not set priority on torrent: {0}.", hash);
@@ -241,6 +243,72 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
             {
                 throw new DownloadClientException("Could not start torrent: {0}.", hash);
             }
+
+        }
+
+        public void AddTorrentMultiCall(string hash, string label, RTorrentSettings settings)
+        {
+            _logger.Debug("Executing remote methods: system.multicall");
+
+            var labelEncoded = System.Web.HttpUtility.UrlEncode(label);
+
+            var client = BuildClient(settings);
+
+            var multicallResponse = client.SystemMulticall(new[]
+                                                {
+                                                      new
+                                                      {
+                                                          methodName = "session.path",
+                                                          @params = new[] { "" }
+                                                      },
+                                                      new
+                                                      {
+                                                          methodName = "d.custom4",
+                                                          @params = new[] { hash }
+                                                      },
+                                                      new
+                                                      {
+                                                          methodName = "d.tied_to_file",
+                                                          @params = new[] { hash }
+                                                      },
+                                                      new
+                                                      {
+                                                          methodName = "d.custom1",
+                                                          @params = new[] { hash, labelEncoded }
+                                                      },
+                                                      new
+                                                      {
+                                                          methodName = "d.directory_base",
+                                                          @params = new[] { hash }
+                                                      },
+                                                      new
+                                                      {
+                                                          methodName = "d.is_private",
+                                                          @params = new[] { hash }
+                                                      },
+                                                      new
+                                                      {
+                                                          methodName = "d.name",
+                                                          @params = new[] { hash }
+                                                      },
+                                                  });
+
+            var sessionPath = ((string[])multicallResponse[0])[0];
+            var custom4 = ((string[])multicallResponse[1])[0];
+            var tiedToFile = ((string[])multicallResponse[2])[0];
+            var custom1 = ((string[])multicallResponse[3])[0];
+            var directory = ((string[])multicallResponse[4])[0];
+            var isPrivate = ((Int64[])multicallResponse[5])[0];
+            var name = ((string[])multicallResponse[6])[0];
+
+            _logger.Trace("session.path: " + sessionPath);
+            _logger.Trace("custom4: " + custom4);
+            _logger.Trace("tiedToFile: " + tiedToFile);
+            _logger.Trace("custom1: " + custom1);
+            _logger.Trace("directory: " + directory);
+            _logger.Trace("isPrivate: " + isPrivate);
+            _logger.Trace("name: " + name);
+
         }
 
         private IRTorrent BuildClient(RTorrentSettings settings)

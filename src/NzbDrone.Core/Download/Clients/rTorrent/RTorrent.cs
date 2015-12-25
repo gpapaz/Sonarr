@@ -41,25 +41,22 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
         {
             _proxy.AddTorrentFromUrl(magnetLink, Settings);
 
-            var tries = 10;
-            var retryDelay = 500;
+            _proxy.AddTorrentMultiCall(hash, Settings.TvCategory, Settings);
+
+            //Wait for 5mins - some old magnets need more time to be downloaded!
+            var tries = 30;
+            var retryDelay = 10000;
             if (WaitForTorrent(hash, tries, retryDelay))
             {
                 _proxy.SetTorrentLabel(hash, Settings.TvCategory, Settings);
 
                 SetPriority(remoteEpisode, hash);
-                SetDownloadDirectory(hash);
-
-                _proxy.StartTorrent(hash, Settings);
-
                 return hash;
             }
             else
             {
                 _logger.Debug("rTorrent could not resolve magnet {0}. Removing", magnetLink);
-
                 RemoveItem(hash, true);
-
                 return null;
             }
         }
@@ -134,10 +131,13 @@ namespace NzbDrone.Core.Download.Clients.RTorrent
                     item.RemainingSize = torrent.RemainingSize;
                     item.Category = torrent.Category;
 
-                    if (torrent.DownRate > 0) {
+                    if (torrent.DownRate > 0)
+                    {
                         var secondsLeft = torrent.RemainingSize / torrent.DownRate;
                         item.RemainingTime = TimeSpan.FromSeconds(secondsLeft);
-                    } else {
+                    }
+                    else
+                    {
                         item.RemainingTime = TimeSpan.Zero;
                     }
 
