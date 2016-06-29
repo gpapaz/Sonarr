@@ -13,7 +13,7 @@ Sonarr is a PVR for Usenet and BitTorrent users. It can monitor multiple RSS fee
 * Manual search so you can pick any release or to see why a release was not downloaded automatically
 * Fully configurable episode renaming
 * Full integration with SABNzbd and NzbGet
-* Full integration with XBMC, Plex (notification, library update, metadata)
+* Full integration with Kodi/XBMC, Plex (notification, library update, metadata)
 * Full support for specials and multi-episode releases
 * And a beautiful UI
 
@@ -30,8 +30,8 @@ Sonarr is a PVR for Usenet and BitTorrent users. It can monitor multiple RSS fee
 - Make sure all the required software mentioned above are installed.
 - Clone the repository into your development machine. [*info*](https://help.github.com/articles/working-with-repositories)
 - Grab the submodules `git submodule init && git submodule update`
-- install the required Node Packages `npm install`
-- start gulp to monitor your dev environment for any changes that need post processing using `npm start` command.
+- Install the required Node Packages `npm install`
+- Start gulp to monitor your dev environment for any changes that need post processing using `npm start` command.
 
 *Please note gulp must be running at all times while you are working with Sonarr client source files.*
 
